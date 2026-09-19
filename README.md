@@ -35,7 +35,7 @@ You can install the plugin manually or by using the
 
     ```bash
     cd domoticz/plugins
-    git clone <repository-url>
+    git clone https://github.com/szelessavalapitvany/EV_Charge_Control
     ```
 
 2. Restart Domoticz.
@@ -61,7 +61,7 @@ If the charger has been switched OFF, the safety function prevents it from being
 1. Go to the plugin directory and pull the latest version:
 
     ```bash
-    cd domoticz/plugins/<plugin-directory>
+    cd domoticz/plugins/EV_Charge_Control
     git pull
     ```
 
@@ -79,7 +79,7 @@ git stash
 1. Reset the plugin to an earlier version:
 
     ```bash
-    cd domoticz/plugins/<plugin-directory>
+    cd domoticz/plugins/EV_Charge_Control
     git reset --hard <commit_hash>
     ```
 
@@ -126,7 +126,7 @@ A plugin telepíthető manuálisan vagy a
 
     ```bash
     cd domoticz/plugins
-    git clone <repository-url>
+    git clone https://github.com/szelessavalapitvany/EV_Charge_Control
     ```
 
 2. Indítsd újra a Domoticzot.
@@ -152,7 +152,7 @@ Ha a töltő kikapcsolásra került, a biztonsági funkció 30 percig nem engedi
 1. Lépj be a plugin könyvtárába és frissítsd:
 
     ```bash
-    cd domoticz/plugins/<plugin-directory>
+    cd domoticz/plugins/EV_Charge_Control
     git pull
     ```
 
@@ -170,7 +170,7 @@ git stash
 1. Régebbi verzió visszaállítása:
 
     ```bash
-    cd domoticz/plugins/<plugin-directory>
+    cd domoticz/plugins/EV_Charge_Control
     git reset --hard <commit_hash>
     ```
 
