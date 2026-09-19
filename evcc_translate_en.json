@@ -1,0 +1,11 @@
+{
+    "Charger operating mode":"Charger operating mode",
+    "Off|Charge On|Charge Off|Automatic On|Automatic Off":"Off|Charge On|Charge Off|Automatic On|Automatic Off",
+    "Start time":"Start time",
+    "Start minute":"Start minute",
+    "Off|30 min|1 hour|1.5 hours|2 hours|3 hours|4 hours|5 hours|6 hours|8 hours|10 hours|12 hours":"Off|30 min|1 hour|1.5 hours|2 hours|3 hours|4 hours|5 hours|6 hours|8 hours|10 hours|12 hours",
+    "Duration":"Duration",
+    "Charge restart lockout": "Charge restart lockout",
+    "No restart lockout": "No restart lockout",
+    "Restart blocked, {} minutes remaining": "Restart blocked, {} minutes remaining"
+}

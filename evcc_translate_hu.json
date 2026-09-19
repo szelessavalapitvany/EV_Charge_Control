@@ -1,0 +1,11 @@
+{
+    "Charger operating mode":"Töltő üzemmódja",
+    "Off|Charge On|Charge Off|Automatic On|Automatic Off":"Off|Töltés be|Töltés ki|Automatikus be|Automatikus ki",
+    "Start time":"Kezdés óra",
+    "Start minute":"Kezdés perc",
+    "Off|30 min|1 hour|1.5 hours|2 hours|3 hours|4 hours|5 hours|6 hours|8 hours|10 hours|12 hours":"Off|30 perc|1 óra|1,5 óra|2 óra|3 óra|4 óra|5 óra|6 óra|8 óra|10 óra|12 óra",
+    "Duration":"Időtartam",
+    "Charge restart lockout": "Töltő újraindítási tiltás",
+    "No restart lockout": "Nincs újraindítási tiltás",
+    "Restart blocked, {} minutes remaining": "Bekapcsolás tiltva, még {} perc"
+}
