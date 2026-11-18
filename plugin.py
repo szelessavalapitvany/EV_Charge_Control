@@ -290,7 +290,7 @@ class BasePlugin:
 
 		devicesAPI = DomoticzAPI(
 			"type=devices&filter=light&order=Name" 
-			if float(Parameters["DomoticzVersion"]) <= 2023.1 
+			if float(Parameters["DomoticzVersion"].split()[0]) <= 2023.1 
 			else "type=command&param=getdevices&filter=light&order=Name"
 		)
 
@@ -417,7 +417,7 @@ class BasePlugin:
 	def statuscommand(self):
 		devicesAPI = DomoticzAPI(
 			"type=devices&filter=light&order=Name" 
-			if float(Parameters["DomoticzVersion"]) <= 2023.1 
+			if float(Parameters["DomoticzVersion"].split()[0]) <= 2023.1 
 			else "type=command&param=getdevices&filter=light&order=Name"
 		)
 		if devicesAPI:
