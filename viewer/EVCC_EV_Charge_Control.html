@@ -1,0 +1,590 @@
+<script>
+	var address = window.location.hostname;
+	var port = window.location.port;
+	var proto = window.location.protocol + '//';
+
+	if (typeof window.TranslationLoader === 'undefined') {
+
+		class TranslationLoader {
+			constructor() {
+				this.translations = {};
+				this.loadTranslations().then((translations) => {
+					this.translations = translations;
+					if ($.isEmptyObject(this.translations)) {
+						console.log("Hiba történt a fordítások betöltése közben!");
+					} else {
+						this.translatePage();
+					}
+				});
+			}
+
+			async loadTranslations() {
+
+				if (typeof proto === 'undefined' || typeof address === 'undefined' || typeof port === 'undefined') {
+					console.error("Hiányzik a 'proto', 'address' vagy 'port' változó.");
+					return {};
+				}
+
+				let aktlanguage;
+
+				const settingsUrl = `${proto}${address}:${port.toString()}/json.htm?type=command&param=getsettings`;
+
+				await fetch(settingsUrl)
+					.then(response => {
+						if (!response.ok) {
+							throw new Error('Hálózati hiba történt');
+						}
+						return response.json();
+					})
+					.then(data => {
+						if (data) {
+							aktlanguage = data.Language;
+						} else {
+							console.error('Nem található nyelvi információ.');
+						}
+					})
+					.catch(error => {
+						console.error('Hiba a beállítások lekérése közben:', error);
+					});
+
+				console.log(aktlanguage);
+
+				const filePath = `/templates/evcc_html_translate_${aktlanguage}.json`;
+
+				try {
+					const response = await $.getJSON(filePath);
+					return response;
+				} catch (error) {
+					console.log(`Hiba történt a '${filePath}' fájl betöltése közben: ${error}`);
+					return {};
+				}
+			}
+
+			t(text) {
+				return this.translations[text] || text;
+			}
+
+			translatePage() {
+				$('[data-translate]').each((index, element) => {
+					const key = $(element).data('translate');
+					const translation = this.t(key);
+					$(element).text(translation);
+				});
+			}
+		}
+
+		window.TranslationLoader = TranslationLoader;
+	}
+
+	var script = document.createElement('script');
+	script.src = 'templates/evcc_viewer.js?' + Date.now();
+
+	var evccScriptReady = new Promise(function(resolve, reject) {
+		script.onload = resolve;
+		script.onerror = reject;
+	});
+
+	document.head.appendChild(script);
+
+</script>
+
+<div id="evcc_content"></div>
+
+<div id="saveStatus" aria-hidden="true">
+	<svg viewBox="0 0 50 50" class="spin-icon" xmlns="http://www.w3.org/2000/svg">
+		<circle cx="25" cy="25" r="20" fill="none" stroke="#eee" stroke-width="4" stroke-linecap="round" stroke-dasharray="90" stroke-dashoffset="60"/>
+	</svg>
+</div>
+
+<h1 id="status"></h1>
+
+<style>
+	body {
+		font-family: sans-serif;
+		font-size: 9pt;
+		padding: 20px;
+	}
+
+	#saveStatus {
+		position: fixed;
+		top: 0px;
+		right: 0px;
+		width: 100%;
+		height: 100%;
+		z-index: 9999;
+		background-color: #fff;
+	}
+
+	.spin-icon {
+		width: 100%;
+		height: 100%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	.save-data {
+		background-color: #00759f;
+		border: none !important;
+		color: #fff;
+		cursor: pointer;
+		padding-top: 8px;
+		padding-bottom: 8px;
+		line-height: 20px;
+		padding-right: 12px;
+		padding-left: 12px;
+		margin-right: 2px;
+		font-size: 10pt;
+		font-weight: bold;
+		margin-bottom: 50px;
+		width: 100%;
+		margin-top: 25px;
+	}
+
+	.device {
+		border: 1px solid #999;
+		padding: 10px;
+		background-color: #eee;
+		cursor: grab;
+		display: inline-block;
+		margin: 5px 5px 5px 0;
+	}
+
+	.drop-target {
+		border: 1px solid #aaa;
+		min-height: 40px;
+		padding: 5px;
+		background-color: #fff;
+		margin-top: 5px;
+	}
+
+	.drop-target.dragover {
+		border-color: #007bff;
+		background-color: #f0faff;
+	}
+
+	.chooser-toggle {
+		cursor: pointer;
+		color: #007bff;
+		font-size: 0.9em;
+		margin-bottom: 5px;
+		display: inline-block;
+	}
+
+	.chooser-box {
+		display: none;
+		padding: 5px;
+		border: 2px dashed #ddd;
+		background: #f9f9f9;
+		margin-bottom: 10px;
+	}
+
+	.zone-block {
+		border: 1px solid #ccc;
+		border-radius: 8px;
+		padding: 15px;
+		margin-bottom: 30px;
+		background-color: #fdfdfd;
+	}
+
+	.input-small {
+		width: 2ch;
+		background-color: #fff !important;
+		font-size: 10pt;
+	}
+
+	.input-normal {
+		width: 20ch;
+		background-color: #fff !important;
+		font-size: 10pt;
+	}
+
+	.paramname {
+		font-weight: bold;
+		font-size: 12pt !important;
+		margin-right: 20px;
+	}
+</style>
+
+<script>
+
+	Date.prototype.yyyymmdd_hhmm = function() {
+		return this.getFullYear().toString() +
+			("0" + (this.getMonth() + 1)).slice(-2) +
+			("0" + this.getDate()).slice(-2) + "_" +
+			("0" + this.getHours()).slice(-2) +
+			("0" + this.getMinutes()).slice(-2);
+	};
+
+	function showSaveStatus() {
+		console.log("saveStatus");
+		document.getElementById("saveStatus").style.display = "block";
+	}
+
+	function hideSaveStatus() {
+		document.getElementById("saveStatus").style.display = "none";
+	}
+
+	if (typeof window.translationLoader === 'undefined') {
+		window.translationLoader = new TranslationLoader();
+	}
+
+	Promise.all([
+		evccScriptReady,
+		translationLoader.loadTranslations()
+	]).then((results) => {
+
+		translationLoader.translations = results[1];
+
+		function download(filename, text) {
+			var element = document.createElement('a');
+			element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+			element.setAttribute('download', filename);
+
+			element.style.display = 'none';
+			document.body.appendChild(element);
+
+			element.click();
+
+			document.body.removeChild(element);
+		}
+
+		// Grafikon ---------------------------------------------------------
+
+		function showUsageChart(data, i) {
+
+			var chartElement = $('#graphk' + i);
+
+			var now = Date.now();
+			var minDate = now - (24 * 60 * 60 * 1000);
+
+			var series = [];
+
+			if (data.chargerswitch != undefined) {
+
+				series.push({
+					name: translationLoader.t("Charging switch"),
+					yAxis: 0,
+					step: 'left',
+					data: (data.chargerswitch || []).map(function(item) {
+						return {
+							x: new Date(item.Date).getTime(),
+							y: item.Status === "On" ? 1 : 0
+						};
+					}).filter(function(item) {
+						return Number.isFinite(item.x);
+					}).sort(function(a, b) {
+						return a.x - b.x;
+					})
+				});
+			}
+
+			// Helyi idő használata
+
+			Highcharts.setOptions({
+				global: {
+					useUTC: false
+				},
+				time: {
+					useUTC: false
+				}
+			});
+
+			chartElement.highcharts({
+
+				chart: {
+					zoomType: 'x'
+				},
+
+				time: {
+					useUTC: false
+				},
+
+				title: {
+					text: ''
+				},
+
+				xAxis: {
+					type: 'datetime',
+					min: minDate,
+					max: now,
+					tickInterval: 3 * 60 * 60 * 1000,
+					minTickInterval: 60 * 60 * 1000,
+					startOnTick: false,
+					endOnTick: false,
+
+					labels: {
+						enabled: true,
+
+						formatter: function() {
+							var date = new Date(this.value);
+
+							return ("0" + date.getHours()).slice(-2) +
+								":" +
+								("0" + date.getMinutes()).slice(-2);
+						}
+					}
+				},
+
+				yAxis: [{
+					title: {
+						text: translationLoader.t("Charging switch")
+					},
+
+					min: 0,
+					max: 1,
+					minPadding: 0,
+					maxPadding: 0,
+					tickPositions: [0, 1],
+
+					labels: {
+						formatter: function() {
+							return translationLoader.t(
+								this.value === 1 ? "On" : "Off"
+							);
+						}
+					}
+				}],
+
+				tooltip: {
+					formatter: function() {
+
+						var date = new Date(this.x);
+
+						var dateText =
+							date.getFullYear() + '-' +
+							("0" + (date.getMonth() + 1)).slice(-2) + '-' +
+							("0" + date.getDate()).slice(-2) + ' ' +
+							("0" + date.getHours()).slice(-2) + ':' +
+							("0" + date.getMinutes()).slice(-2);
+
+						return dateText +
+							'<br/>' +
+							this.series.name + ': ' +
+							translationLoader.t(
+								this.y === 1 ? "On" : "Off"
+							);
+					}
+				},
+
+				plotOptions: {
+					series: {
+						turboThreshold: 0,
+						lineWidth: 2,
+
+						marker: {
+							enabled: false
+						}
+					}
+				},
+
+				legend: {
+					enabled: true
+				},
+
+				series: series
+			});
+		}
+
+		// Aktuális beállítás megjelenítése ----------------------------------
+
+		function addSelector(controls, device, pluginName) {
+
+			if (!device) return;
+
+			var block = document.createElement('div');
+
+			var label = document.createElement('div');
+			label.style.fontWeight = 'bold';
+			label.style.marginBottom = '5px';
+			label.textContent = device.Name.replace(pluginName + ' - ', '');
+
+			block.appendChild(label);
+
+			var value = document.createElement('span');
+			value.textContent = device.Data;
+
+			block.appendChild(value);
+			controls.appendChild(block);
+		}
+
+		// Adatok lekérése --------------------------------------------------
+
+		var evcc = getTolto();
+
+		var askJSON = getRequestParam("ontozoHistory");
+
+		if (askJSON != undefined) {
+
+			var th = evcc.filter((t) => t.name == askJSON);
+
+			if (th.length > 0) {
+				var s = JSON.stringify(th[0]);
+				download(th[0].name + '_' + new Date().yyyymmdd_hhmm(), s);
+			}
+
+			hideSaveStatus();
+
+		} else {
+
+			if (nodata) {
+				document.getElementById("status").innerText = translationLoader.t("No active plugins!");
+				hideSaveStatus();
+				return;
+			}
+
+			for (var i = 0; i < evcc.length; i++) {
+
+				var table = document.createElement('table');
+				table.setAttribute('style', 'border-spacing: 5px;');
+
+				document.getElementById('evcc_content').appendChild(table);
+
+				var row = table.insertRow();
+				var cell1 = row.insertCell(0);
+
+				var redname = document.createElement('h1');
+				redname.setAttribute('style', 'margin-top:15px; margin-bottom: 10px;');
+				redname.innerText = evcc[i].name;
+
+				cell1.appendChild(redname);
+
+				var row = table.insertRow();
+				var cell1 = row.insertCell(0);
+
+				// Aktuális beállítások -------------------------------------
+
+				var controls = document.createElement('div');
+				controls.className = 'container-fluid btn-toolbar well ui-widget-content';
+
+				controls.style.display = 'flex';
+				controls.style.flexWrap = 'wrap';
+				controls.style.alignItems = 'flex-start';
+				controls.style.gap = '20px';
+
+				document.getElementById('evcc_content').appendChild(controls);
+
+				// Töltő üzemmódja
+
+				addSelector(
+					controls,
+					evcc[i].mode,
+					evcc[i].name
+				);
+
+				// Kezdés óra
+
+				addSelector(
+					controls,
+					evcc[i].startHour,
+					evcc[i].name
+				);
+
+				// Kezdés perc
+
+				addSelector(
+					controls,
+					evcc[i].startMinute,
+					evcc[i].name
+				);
+
+				// Időtartam
+
+				addSelector(
+					controls,
+					evcc[i].duration,
+					evcc[i].name
+				);
+
+				// Töltőkapcsoló aktuális állapota ---------------------------
+
+				if (evcc[i].chargeSwitch) {
+
+					var block = document.createElement('div');
+
+					var label = document.createElement('div');
+					label.style.fontWeight = 'bold';
+					label.style.marginBottom = '5px';
+					label.textContent = translationLoader.t("Charging switch");
+
+					block.appendChild(label);
+
+					var state = document.createElement('span');
+					var active = evcc[i].chargeSwitch.Status === 'On';
+
+					state.textContent = translationLoader.t(
+						active ? "On" : "Off"
+					);
+
+					state.style.fontWeight = 'bold';
+					state.style.color = active ? '#28a745' : '#dc3545';
+
+					block.appendChild(state);
+					controls.appendChild(block);
+				}
+
+				// Újraindítási tiltás ---------------------------------------
+
+				if (evcc[i].restartBlock) {
+
+					var block = document.createElement('div');
+
+					var label = document.createElement('div');
+					label.style.fontWeight = 'bold';
+					label.style.marginBottom = '5px';
+
+					label.textContent = evcc[i].restartBlock.Name.replace(
+						evcc[i].name + ' - ',
+						''
+					);
+
+					block.appendChild(label);
+
+					var state = document.createElement('span');
+					state.textContent = evcc[i].restartBlock.Data;
+
+					block.appendChild(state);
+					controls.appendChild(block);
+				}
+
+				// Grafikon --------------------------------------------------
+
+				var element = document.createElement('h2');
+
+				element.innerText = translationLoader.t("The last day:");
+
+				element.setAttribute(
+					'style',
+					'margin-top:15px; margin-bottom: 10px;'
+				);
+
+				document.getElementById('evcc_content').appendChild(element);
+
+				element = document.createElement('div');
+
+				element.setAttribute('class', 'device-log-chart');
+				element.setAttribute('style', 'margin-bottom: 60px;');
+				element.setAttribute('id', 'graphk' + i);
+
+				document.getElementById('evcc_content').appendChild(element);
+
+				showUsageChart(evcc[i], i);
+			}
+
+			hideSaveStatus();
+		}
+
+	}).catch(function(error) {
+		console.error("EVCC viewer:", error);
+		hideSaveStatus();
+	});
+
+</script>
